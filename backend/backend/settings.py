@@ -206,7 +206,7 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Next.js frontend
     "http://127.0.0.1:3000",  # Alternative localhost
-    "https://healthbot-fy.vercel.app/",  # Replace with your actual frontend URL
+    "https://healthbot-fy.vercel.app",  # Replace with your actual frontend URL
 ]
 
 # Allow credentials to be included in CORS requests (for cookies/tokens)

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Send, Mic, Paperclip, Activity, ChevronDown, MessageSquare, User, LogOut, Trash2 } from "lucide-react"
+import { Send, Mic, Paperclip, Activity, ChevronDown, MessageSquare, User, LogOut, Trash2, Menu, X } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import TypingIndicator from "./typing-indicator"
 import { chatAPI, isAuthenticated } from "@/app/utils/auth"
@@ -53,6 +53,7 @@ export default function ChatInterface({ user, onSignOut, onNavigate }: ChatInter
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [isLoadingSessions, setIsLoadingSessions] = useState(true)
   const [showAudioInput, setShowAudioInput] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const SESSION_STORAGE_KEY = "current_chat_session_id"
 
   const scrollToBottom = () => {
@@ -257,16 +258,58 @@ export default function ChatInterface({ user, onSignOut, onNavigate }: ChatInter
     setShowAudioInput(false)
   }
 
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen)
+  }
+
+  const closeSidebar = () => {
+    setSidebarOpen(false)
+  }
+
+  const handleSessionSelect = (sessionId: string) => {
+    loadChatHistory(sessionId)
+    // Close sidebar on mobile after selecting a session
+    if (window.innerWidth < 768) {
+      closeSidebar()
+    }
+  }
+
   return (
-    <div className="h-screen flex bg-gray-50">
+    <div className="h-screen flex bg-gray-50 relative">
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={closeSidebar}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+      <div className={`
+        fixed md:relative z-50 md:z-auto
+        w-80 bg-white border-r border-gray-200 flex flex-col
+        h-full
+        transform transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:translate-x-0
+      `}>
         <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center space-x-2 mb-4">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Activity className="w-5 h-5 text-white" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <Activity className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-xl font-bold text-gray-900">HealthBot</span>
             </div>
-            <span className="text-xl font-bold text-gray-900">HealthBot</span>
+            {/* Close button for mobile */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={closeSidebar}
+            >
+              <X className="w-5 h-5" />
+            </Button>
           </div>
           <Button className="w-full bg-transparent" variant="outline" onClick={startNewConversation}>
             <MessageSquare className="w-4 h-4 mr-2" />
@@ -288,7 +331,7 @@ export default function ChatInterface({ user, onSignOut, onNavigate }: ChatInter
                   className={`cursor-pointer hover:bg-gray-50 transition-colors ${
                     currentSessionId === session.id.toString() ? 'bg-blue-50 border-blue-200' : ''
                   }`}
-                  onClick={() => loadChatHistory(session.id.toString())}
+                  onClick={() => handleSessionSelect(session.id.toString())}
                 >
                   <CardContent className="p-3 relative group">
                     <h4 className="font-medium text-sm text-gray-900 mb-1 pr-8">{session.title}</h4>
@@ -310,10 +353,19 @@ export default function ChatInterface({ user, onSignOut, onNavigate }: ChatInter
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col w-full md:w-auto">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 p-4 flex justify-between items-center">
           <div className="flex items-center space-x-3">
+            {/* Hamburger Menu Button for Mobile */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden mr-2"
+              onClick={toggleSidebar}
+            >
+              <Menu className="w-5 h-5" />
+            </Button>
             <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
               <Activity className="w-5 h-5 text-blue-600" />
             </div>
@@ -356,7 +408,7 @@ export default function ChatInterface({ user, onSignOut, onNavigate }: ChatInter
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-2 xs:p-3 sm:p-4 space-y-4">
           {showAudioInput && (
             <div>
               <AudioRecord
@@ -368,7 +420,7 @@ export default function ChatInterface({ user, onSignOut, onNavigate }: ChatInter
           )}
           {messages.map((message) => (
             <div key={message.id} className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`flex items-start space-x-2 max-w-xs lg:max-w-md`}>
+              <div className={`flex items-start space-x-2 max-w-[280px] xs:max-w-[320px] sm:max-w-xs md:max-w-sm lg:max-w-md xl:max-w-lg 2xl:max-w-xl`}>
                 {message.sender === "ai" && (
                   <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                     <Activity className="w-4 h-4 text-white" />
@@ -376,11 +428,11 @@ export default function ChatInterface({ user, onSignOut, onNavigate }: ChatInter
                 )}
 
                 <div
-                  className={`px-4 py-2 rounded-lg ${
+                  className={`px-3 xs:px-4 py-2 rounded-lg ${
                     message.sender === "user" ? "bg-blue-600 text-white" : "bg-white border border-gray-200"
                   }`}
                 >
-                  <p className="text-sm">{message.content}</p>
+                  <p className="text-sm break-words">{message.content}</p>
                   <p className={`text-xs mt-1 ${message.sender === "user" ? "text-blue-100" : "text-gray-500"}`}>
                     {message.timestamp.toLocaleTimeString()}
                   </p>
@@ -409,9 +461,9 @@ export default function ChatInterface({ user, onSignOut, onNavigate }: ChatInter
         </div>
 
         {/* Input Area */}
-        <div className="bg-white border-t border-gray-200 p-4">
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="icon">
+        <div className="bg-white border-t border-gray-200 p-2 xs:p-3 sm:p-4">
+          <div className="flex items-center space-x-1 xs:space-x-2">
+            <Button variant="outline" size="icon" className="hidden xs:flex">
               <Paperclip className="w-4 h-4" />
             </Button>
             <div className="flex-1 relative">
@@ -420,7 +472,7 @@ export default function ChatInterface({ user, onSignOut, onNavigate }: ChatInter
                 onChange={(e) => setInputMessage(e.target.value)}
                 placeholder="Type your health question..."
                 onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                className="pr-12"
+                className="pr-12 text-sm xs:text-base"
                 disabled={isTyping}
               />
               <Button
@@ -433,11 +485,11 @@ export default function ChatInterface({ user, onSignOut, onNavigate }: ChatInter
                 <Mic className="w-4 h-4" />
               </Button>
             </div>
-            <Button onClick={handleSendMessage} disabled={!inputMessage.trim() || isTyping}>
+            <Button onClick={handleSendMessage} disabled={!inputMessage.trim() || isTyping} size="icon">
               <Send className="w-4 h-4" />
             </Button>
           </div>
-          <p className="text-xs text-gray-500 mt-2 text-center">
+          <p className="text-xs text-gray-500 mt-2 text-center hidden xs:block">
             This AI assistant provides general health information and should not replace professional medical advice.
           </p>
         </div>
