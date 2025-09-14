@@ -1,7 +1,7 @@
 // API Configuration
 export const API_CONFIG = {
   // Backend URL - change this to your deployed backend URL in production
-  BASE_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
+  BASE_URL: process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000",
   
   // API Endpoints
   ENDPOINTS: {
@@ -19,6 +19,7 @@ export const API_CONFIG = {
     CHAT_HISTORY: "/api/chat-sessions/",
     DELETE_CHAT_SESSION: "/api/chat-sessions/",
     CHAT_AUDIO: "/api/chat/audio/",
+    DAILY_TIP: "/api/daily-tip/",
   },
   
   // Request timeouts

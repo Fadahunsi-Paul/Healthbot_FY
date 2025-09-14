@@ -1,18 +1,38 @@
 import os
+import datetime
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
 from .model.session import ChatSession
 from .model.history import History
-from .utils import classify_question
-from .utils_followup import build_context
+from .utils.utils import classify_question
+from .utils.utils_followup import build_context
 from .qa_lookup import get_answer
 import tempfile
 from pydub import AudioSegment
 import speech_recognition as sr
 from rest_framework.parsers import MultiPartParser, FormParser
-from .utils_followup import build_context   
+from .utils.utils_followup import build_context   
+from .model.dailytip import DailyTip
+from .serializer import DailyTipSerializer
+from .utils.smalltalk import check_smalltalk
+from .model.unanswered import Unanswered
+
+class DailyTipView(APIView):
+    permission_classes = [AllowAny]
+    def get(self, request):
+        today = datetime.date.today()
+        daily_tips = DailyTip.objects.filter(date=today).select_related("tip")[:3]
+
+        if not daily_tips.exists():
+            # fallback to most recent 3
+            daily_tips = DailyTip.objects.select_related("tip").order_by("-date")[:3]
+
+        serializer = DailyTipSerializer(daily_tips, many=True)
+        return Response(serializer.data)
+
+
 
 class ChatbotAudioAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -135,23 +155,35 @@ class ChatbotAPIView(APIView):
         user_question = (request.data.get("question") or "").strip()
         session_id = request.data.get("session_id")
 
+        smalltalk = check_smalltalk(user_question)
+        if smalltalk:  
+            return Response({"answer": smalltalk}, status=200)
+
         if not user_question:
             return Response({"error": "No question provided"}, status=400)
+
         if session_id:
             session = get_object_or_404(ChatSession, id=session_id, user=user)
         else:
-            title = user_question[:50]
-            if len(user_question) > 50:
-                title += "..."
+            title = user_question[:50] + ("..." if len(user_question) > 50 else "")
             session = ChatSession.objects.create(user=user, title=title)
+
         History.objects.create(session=session, sender="user", message=user_question)
+
         N = 6
         recent_qs = session.messages.order_by("-timestamp")[:N]   
         recent = list(reversed(list(recent_qs)))                
         history = [{"sender": m.sender, "message": m.message, "timestamp": m.timestamp} for m in recent]
         context_text = build_context(history, user_question, max_messages=N)
+
         label = classify_question(context_text)
+
         answer = get_answer(user_question, label, context=context_text, history=history)
+
+        if not answer or answer.strip().lower() in ["i don't know", "not sure", "unknown"]:
+            Unanswered.objects.create(user=user, question=user_question)
+            answer = "I’m not sure yet 🤔, but I’ll learn from this question!"
+
         History.objects.create(session=session, sender="bot", message=answer)
 
         return Response({

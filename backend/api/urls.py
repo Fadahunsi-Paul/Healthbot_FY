@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import ChatbotAPIView, ChatSessionListAPIView, ChatHistoryAPIView, ChatSessionDeleteAPIView, ChatbotAudioAPIView
+from .views import *
 
 urlpatterns = [
     path('chatbot/', ChatbotAPIView.as_view(), name='chatbot'),
@@ -7,5 +7,5 @@ urlpatterns = [
     path('chat-sessions/<int:session_id>/', ChatHistoryAPIView.as_view(), name='chat-session-messages'),
     path('chat-sessions/<int:session_id>/delete/', ChatSessionDeleteAPIView.as_view(), name='delete-chat-session'),
     path("chat/audio/", ChatbotAudioAPIView.as_view(), name="chat-audio"),
-
+    path("daily-tip/", DailyTipView.as_view(), name="daily-tip"),
 ] 

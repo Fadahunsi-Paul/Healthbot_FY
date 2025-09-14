@@ -26,9 +26,8 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 import requests
-# from google.oauth2 import id_token  
 from rest_framework import permissions
-# from google.auth.transport import requests as google_requests
+from django.shortcuts import redirect
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 
@@ -143,75 +142,86 @@ class LoginAPIView(APIView):
         return Response({"Message": _("Logout Successful")}, status=status.HTTP_200_OK)
 
 class VerifyEmailViewSet(viewsets.GenericViewSet):
-    serializer_class = VerifyEmailSerializer
     permission_classes = [AllowAny]
-    @swagger_auto_schema(
-        manual_parameters=[
-            openapi.Parameter(
-                'token',
-                openapi.IN_QUERY,
-                description="JWT token for email verification",
-                type=openapi.TYPE_STRING
-            )
-        ]
-    )
-    @action(methods=['get'], detail=False)
+
+    @action(methods=['get'], detail=False, url_path='verify')
     def verify(self, request):
         token = request.GET.get('token')
+        frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+
         if not token:
-            return Response({'error': 'Token is required'}, status=status.HTTP_400_BAD_REQUEST)
+            return redirect(f"{frontend_url}/verify-email-invalid")
+
         try:
+            # Decode token
             email_token = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
             user = User.objects.get(id=email_token['user_id'])
+
+            # Activate user if not already
             if not user.is_verified:
                 user.is_verified = True
-                user.is_active = True  # Also activate the user
+                user.is_active = True
                 user.save()
-                print(f"User {user.email} verified and activated successfully")
-            return Response({'message': 'User is successfully activated'}, status=status.HTTP_200_OK)
+
+            # ✅ Redirect to success page
+            return redirect(f"{frontend_url}/verify-email?status=success")
+
         except jwt.ExpiredSignatureError:
-            return Response({'error': 'Email activation link has expired'}, status=status.HTTP_400_BAD_REQUEST)
-        except jwt.DecodeError:
-            return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
-        except ObjectDoesNotExist:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            return redirect(f"{frontend_url}/verify-email?status=expired")
+
+        except (jwt.DecodeError, ObjectDoesNotExist):
+            return redirect(f"{frontend_url}/verify-email?status=invalid")
 
     @staticmethod
     def generate_token(user):
+        """
+        Generate JWT token for email verification (24h expiry).
+        """
         expiration = datetime.utcnow() + timedelta(hours=24)
         payload = {
-            'user_id': user.id,
-            'exp': expiration,
-            'iat': datetime.utcnow()
+            "user_id": user.id,
+            "exp": expiration,
+            "iat": datetime.utcnow()
         }
-        token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+        token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
         return token
 
 class RequestPasswordResetEmail(generics.GenericAPIView):
     permission_classes = [AllowAny]
     serializer_class = RequestPasswordSerializer
+
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         if not serializer.is_valid():
-            return Response({'error': 'Invalid input'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Invalid input"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         validated_data = serializer.validated_data
-        email = validated_data.get('email') 
+        email = validated_data.get("email")
+
         try:
             user = User.objects.get(email=email)
             code = generate_six_digit_code()
+
+            # Save reset code
             ResetPassword.objects.create(user=user, code=code)
-            
-            # Only send email in production
-            if not settings.DEBUG:
+
+            # Send email (always, unless explicitly disabled)
+            if getattr(settings, "SEND_EMAILS", True):
                 send_reset_code(user, code)
             else:
-                print(f"Development mode: Reset code for {email} is {code}")
-                
+                # fallback for dev/test
+                print(f"[DEV MODE] Reset code for {email} is {code}")
+
         except ObjectDoesNotExist:
             pass
 
-        return Response({'message': 'If your email is registered, a reset code has been sent.'}, status=status.HTTP_200_OK)
-
+        return Response(
+            {"message": "If your email is registered, a reset code has been sent."},
+            status=status.HTTP_200_OK
+        )
 
 class VerifyPasswordReset(generics.GenericAPIView):
     permission_classes = [AllowAny]

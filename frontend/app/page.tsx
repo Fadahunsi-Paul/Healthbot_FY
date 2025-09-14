@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react"
 import LandingPage from "./components/landing-page"
-import SignUpPage from "./components/sign-up-page"
-import SignInPage from "./components/sign-in-page"
+import SignUpPage from "./sign-up/page"
+import SignInPage from "./sign-in/page"
 import ChatInterface from "./components/chat-interface"
 import ProfilePage from "./components/profile-page"
 import { authAPI, getUserData, isAuthenticated, User } from "./utils/auth"

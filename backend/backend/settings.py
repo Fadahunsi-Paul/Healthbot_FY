@@ -14,7 +14,7 @@ from pathlib import Path
 import os
 import dotenv
 from dotenv import load_dotenv
-
+from celery.schedules import crontab
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 # Load environment variables from .env file if it exists
@@ -150,7 +150,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
 #Sending User Email
 EMAIL_USE_TLS = True
@@ -160,7 +160,7 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'your_email@gmail.com')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'your_app_password')
 
 # Site URL for email links
-SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
+SITE_URL = os.environ.get('SITE_URL', 'http://localhost:3000')
 
 # DRF Settings
 REST_FRAMEWORK = {
@@ -209,3 +209,14 @@ CORS_ALLOWED_HEADERS = [
 # CORS_ALLOW_ALL_ORIGINS = True
 
 SITE_URL='http://localhost:8000'
+# Run fetch_daily_tip every day at 8 AM
+CRONJOBS = [
+    ('0 8 * * *', 'django.core.management.call_command', ['fetch_daily_tip']),
+]
+
+CELERY_BEAT_SCHEDULE = {
+    "export-unanswered-daily": {
+        "task": "api.tasks.export_unanswered_to_csv",
+        "schedule": crontab(hour=2, minute=0),  
+    },
+}

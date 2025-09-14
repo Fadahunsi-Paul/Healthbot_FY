@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { API_CONFIG, buildUrl } from "@/app/config/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -21,7 +22,7 @@ interface LandingPageProps {
   onNavigate: (page: "landing" | "signup" | "signin" | "chat") => void
 }
 
-const healthTips = [
+const defaultHealthTips = [
   {
     icon: <Heart className="w-8 h-8 text-red-500" />,
     title: "Heart Health",
@@ -62,16 +63,70 @@ const whyUsFeatures = [
 
 export default function LandingPage({ onNavigate }: LandingPageProps) {
   const [currentTip, setCurrentTip] = useState(0)
+  const [tips, setTips] = useState(defaultHealthTips)
 
   useEffect(() => {
+    if (tips.length <= 1) return
     const interval = setInterval(() => {
-      setCurrentTip((prev) => (prev + 1) % healthTips.length)
+      setCurrentTip((prev) => (prev + 1) % tips.length)
     }, 4000)
     return () => clearInterval(interval)
+  }, [tips.length])
+
+  useEffect(() => {
+    const fetchDailyTip = async () => {
+      try {
+        const res = await fetch(buildUrl(API_CONFIG.ENDPOINTS.DAILY_TIP))
+        if (!res.ok) return
+        const data = await res.json()
+
+        // Backend now returns an array of up to 3 tips: [{ date, tip: { title, body, source, ... } }]
+        if (Array.isArray(data)) {
+          const mapped = data
+            .map((item: any) => {
+              const t = item?.tip || {}
+              const title = t?.title || "Daily Health Tip"
+              const body = t?.body || ""
+              const source: string = (t?.source || "").toLowerCase()
+              const icon = source.includes("heart")
+                ? <Heart className="w-8 h-8 text-red-500" />
+                : source.includes("brain")
+                ? <Brain className="w-8 h-8 text-purple-500" />
+                : <Activity className="w-8 h-8 text-green-500" />
+              if (!body) return null
+              return { icon, title, tip: body }
+            })
+            .filter(Boolean) as { icon: JSX.Element; title: string; tip: string }[]
+
+          if (mapped.length > 0) {
+            setTips(mapped)
+            setCurrentTip(0)
+            return
+          }
+        }
+
+        // Backward compatibility with previous single-object shape
+        const title = data?.tip?.title || "Daily Health Tip"
+        const body = data?.tip?.body || ""
+        const source: string = (data?.tip?.source || "").toLowerCase()
+        const icon = source.includes("heart")
+          ? <Heart className="w-8 h-8 text-red-500" />
+          : source.includes("brain")
+          ? <Brain className="w-8 h-8 text-purple-500" />
+          : <Activity className="w-8 h-8 text-green-500" />
+        if (body) {
+          setTips([{ icon, title, tip: body }])
+          setCurrentTip(0)
+        }
+      } catch (_) {
+        // silent fallback to defaults
+      }
+    }
+    fetchDailyTip()
   }, [])
 
-  const nextTip = () => setCurrentTip((prev) => (prev + 1) % healthTips.length)
-  const prevTip = () => setCurrentTip((prev) => (prev - 1 + healthTips.length) % healthTips.length)
+  const nextTip = () => tips.length > 0 && setCurrentTip((prev) => (prev + 1) % tips.length)
+  const prevTip = () => tips.length > 0 && setCurrentTip((prev) => (prev - 1 + tips.length) % tips.length)
 
   return (
     <div className="min-h-screen">
@@ -201,39 +256,51 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
           <div className="relative">
             <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 shadow-lg border-0">
               <CardContent className="p-8">
-                <div className="flex items-center justify-center mb-6">{healthTips[currentTip].icon}</div>
-                <h3 className="text-2xl font-semibold text-center mb-4">{healthTips[currentTip].title}</h3>
-                <p className="text-gray-600 text-center text-lg leading-relaxed">{healthTips[currentTip].tip}</p>
+                {tips.length > 0 ? (
+                  <>
+                    <div className="flex items-center justify-center mb-6">{tips[currentTip].icon}</div>
+                    <h3 className="text-2xl font-semibold text-center mb-4">{tips[currentTip].title}</h3>
+                    <p className="text-gray-600 text-center text-lg leading-relaxed">{tips[currentTip].tip}</p>
+                  </>
+                ) : (
+                  <p className="text-gray-600 text-center text-lg leading-relaxed">No tip available right now.</p>
+                )}
               </CardContent>
             </Card>
-            <Button
-              variant="outline"
-              size="icon"
-              className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white shadow-lg hover:shadow-xl"
-              onClick={prevTip}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white shadow-lg hover:shadow-xl"
-              onClick={nextTip}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
+            {tips.length > 1 && (
+              <>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white shadow-lg hover:shadow-xl"
+                  onClick={prevTip}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white shadow-lg hover:shadow-xl"
+                  onClick={nextTip}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </>
+            )}
           </div>
-          <div className="flex justify-center mt-6 space-x-2">
-            {healthTips.map((_, index) => (
-              <button
-                key={index}
-                className={`w-3 h-3 rounded-full transition-colors ${
-                  index === currentTip ? "bg-blue-600" : "bg-gray-300"
-                }`}
-                onClick={() => setCurrentTip(index)}
-              />
-            ))}
-          </div>
+          {tips.length > 1 && (
+            <div className="flex justify-center mt-6 space-x-2">
+              {tips.map((_, index) => (
+                <button
+                  key={index}
+                  className={`w-3 h-3 rounded-full transition-colors ${
+                    index === currentTip ? "bg-blue-600" : "bg-gray-300"
+                  }`}
+                  onClick={() => setCurrentTip(index)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
