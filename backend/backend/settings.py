@@ -36,7 +36,13 @@ SECRET_KEY = 'django-insecure-!@yg#&3^-+afohjd0r&u(_8u@=r!qso!y=q33vq7hfe3zyp1e*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+import os
+
+ALLOWED_HOSTS = [
+    "healthbot-fy.onrender.com",
+    "localhost",
+    "127.0.0.1",
+]
 
 
 # Application definition
@@ -200,7 +206,7 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Next.js frontend
     "http://127.0.0.1:3000",  # Alternative localhost
-    "https://your-frontend-domain.onrender.com",  # Replace with your actual frontend URL
+    "https://healthbot-fy.vercel.app/",  # Replace with your actual frontend URL
 ]
 
 # Allow credentials to be included in CORS requests (for cookies/tokens)
