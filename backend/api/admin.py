@@ -4,6 +4,7 @@ from .model.history import History
 from .model.healthtip import HealthTip
 from .model.dailytip import DailyTip
 from .model.unanswered import Unanswered
+from .model.cache import CachedAnswer
 import csv
 from django.http import HttpResponse
 # Register your models here.
@@ -51,4 +52,20 @@ class UnansweredAdmin(admin.ModelAdmin):
         return response
 
     export_to_csv.short_description = "📥 Export selected (or all answered) to CSV"
+    actions = [export_to_csv]
+
+@admin.register(CachedAnswer)
+class CachedAnswerAdmin(admin.ModelAdmin):
+    list_display = ('user', 'query_text', 'answer', 'expires_at')
+    search_fields = ('user', 'query_text', 'answer')
+    list_filter = ('expires_at', 'user')
+    def export_to_csv(self, request, queryset):
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="cached_answer_export.csv"'
+        writer = csv.writer(response)
+        writer.writerow(["User", "Query Text", "Answer", "Expires At"])
+        for item in queryset:
+            writer.writerow([item.user, item.query_text, item.answer, item.expires_at])
+        return response
+    export_to_csv.short_description = "📥 Export selected to CSV"
     actions = [export_to_csv]
