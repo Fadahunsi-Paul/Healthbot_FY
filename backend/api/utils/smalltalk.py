@@ -2,10 +2,11 @@
 import random
 import re
 
-GREETINGS = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening"]
-FAREWELLS = ["bye", "goodbye", "see you", "take care", "later"]
-IDENTITY = ["who are you", "what are you", "what can you do", "your name"]
-THANKS = ["thanks", "thank you", "appreciate"]
+GREETINGS = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening","hi there","hey there"]
+FAREWELLS = ["bye", "goodbye", "see you", "take care", "later","goodbye"]
+IDENTITY = ["who are you", "what are you", "what can you do", "your name","what is your name","What's up","What's going on"]
+THANKS = ["thanks", "thank you", "appreciate","thank you so much","yes i am","yes"]
+CARE = ["how are you", "how are you doing", "how are you feeling", "how are you doing today"]
 
 RESPONSES = {
     "greeting": [
@@ -26,6 +27,12 @@ RESPONSES = {
         "You're welcome! 🙌",
         "Glad I could help. 💙",
         "Anytime! Stay healthy. 🌿",
+    ],
+    "care" : [
+    "I'm doing well, thank you! How about you?",
+    "I'm fine! Hope you're having a great day.",
+    "I'm good, thanks for asking. How are you feeling?",
+    "All good here! How are you doing today?"
     ],
     "fallback": [
         "I'm here for you! 💡 Ask me anything about health and wellness.",
@@ -51,7 +58,8 @@ def check_smalltalk(user_input: str):
         return random.choice(RESPONSES["identity"])
     if any(p in text for p in THANKS):
         return random.choice(RESPONSES["thanks"])
-
+    if any(p in text for p in CARE):
+        return random.choice(RESPONSES["care"])
     # 2️⃣ Only fallback if it's too short or nonsense (not a full question)
     if len(text.split()) <= 2:  # like "hmm", "ok", "yo", "bro"
         return random.choice(RESPONSES["fallback"])
