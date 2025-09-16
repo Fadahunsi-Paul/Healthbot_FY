@@ -3,10 +3,10 @@ import pandas as pd
 csv_file = "dataset/train.csv"   
 
 new_data = {
-    "qtype": "information",
-    "Question": "Where can I find support groups?",
+    "qtype": "causes",
+    "Question": "What are causes of malaria?",
     "Answer": (
-        "You can find support groups through hospitals, clinics, nonprofit organizations, and online communities. Websites like the CDC, WHO, and patient advocacy groups also list support resources by condition."
+        "Malaria is caused by Plasmodium parasites and is spread to humans through the bites of infected female Anopheles mosquitoes. After an infected mosquito bites a person, the parasite travels to the liver and then invades red blood cells, causing the disease. Although rare, malaria can also be transmitted through blood transfusions, organ donation, and from mother to child during pregnancy."
     )
 }
 

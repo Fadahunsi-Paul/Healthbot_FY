@@ -2,11 +2,19 @@
 import random
 import re
 
-GREETINGS = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening","hi there","hey there"]
-FAREWELLS = ["bye", "goodbye", "see you", "take care", "later","goodbye"]
-IDENTITY = ["who are you", "what are you", "what can you do", "your name","what is your name","What's up","What's going on"]
-THANKS = ["thanks", "thank you", "appreciate","thank you so much","yes i am","yes"]
+GREETINGS = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening", "hi there", "hey there"]
+FAREWELLS = ["bye", "goodbye", "see you", "take care", "later", "goodbye"]
+IDENTITY = ["who are you", "what are you", "what can you do", "your name", "what is your name", "what's up", "what's going on"]
+THANKS = ["thanks", "thank you", "appreciate", "thank you so much", "yes i am", "yes"]
 CARE = ["how are you", "how are you doing", "how are you feeling", "how are you doing today"]
+
+MEDICAL_KEYWORDS = {
+    "malaria", "diabetes", "fever", "headache", "stomach", "pain", "symptoms",
+    "causes", "treatment", "prevention", "vaccine", "infection", "cough", "cold",
+    "disease", "sickness", "illness", "medication", "prescription", "doctor", "hospital",
+    "health", "wellness", "fitness", "nutrition", "exercise", "sleep", "stress", "anxiety",
+    "depression", "mental health", "well-being",
+}
 
 RESPONSES = {
     "greeting": [
@@ -28,11 +36,11 @@ RESPONSES = {
         "Glad I could help. 💙",
         "Anytime! Stay healthy. 🌿",
     ],
-    "care" : [
-    "I'm doing well, thank you! How about you?",
-    "I'm fine! Hope you're having a great day.",
-    "I'm good, thanks for asking. How are you feeling?",
-    "All good here! How are you doing today?"
+    "care": [
+        "I'm doing well, thank you! How about you?",
+        "I'm fine! Hope you're having a great day.",
+        "I'm good, thanks for asking. How are you feeling?",
+        "All good here! How are you doing today?"
     ],
     "fallback": [
         "I'm here for you! 💡 Ask me anything about health and wellness.",
@@ -42,17 +50,22 @@ RESPONSES = {
     ],
 }
 
+def _clean(text: str) -> str:
+    text = (text or "").lower().strip()
+    text = re.sub(r"[^\w\s]", "", text)
+    return text
+
 def check_smalltalk(user_input: str):
     if not user_input:
         return None
 
-    text = user_input.lower().strip()
-    text = re.sub(r"[^\w\s]", "", text)
+    text = _clean(user_input)
+    words = text.split()
 
-    # 1️⃣ Explicit matches
-    if any(text.startswith(g) or text == g for g in GREETINGS):
+    # Exact matches for greetings/farewells/etc.
+    if any(text == g or text.startswith(g + " ") for g in GREETINGS):
         return random.choice(RESPONSES["greeting"])
-    if any(text.startswith(f) or text == f for f in FAREWELLS):
+    if any(text == f or text.startswith(f + " ") for f in FAREWELLS):
         return random.choice(RESPONSES["farewell"])
     if any(p in text for p in IDENTITY):
         return random.choice(RESPONSES["identity"])
@@ -60,9 +73,11 @@ def check_smalltalk(user_input: str):
         return random.choice(RESPONSES["thanks"])
     if any(p in text for p in CARE):
         return random.choice(RESPONSES["care"])
-    # 2️⃣ Only fallback if it's too short or nonsense (not a full question)
-    if len(text.split()) <= 2:  # like "hmm", "ok", "yo", "bro"
+
+    # Only treat short utterances as smalltalk if they do NOT contain medical keywords.
+    if len(words) <= 2:
+        if any(k in text for k in MEDICAL_KEYWORDS):
+            return None
         return random.choice(RESPONSES["fallback"])
 
-    # 3️⃣ Otherwise → assume it’s a health question (let classifier handle it)
     return None

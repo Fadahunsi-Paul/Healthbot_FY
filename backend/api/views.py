@@ -18,6 +18,66 @@ from .model.dailytip import DailyTip
 from .serializer import DailyTipSerializer
 from .utils.smalltalk import check_smalltalk
 from .model.unanswered import Unanswered
+from nlp.service.services import get_answer
+
+
+class ChatbotAPIView(APIView):
+    permission_classes = [IsAuthenticated]   
+
+    def post(self, request):
+        user = request.user
+        user_question = (request.data.get("question") or "").strip()
+        session_id = request.data.get("session_id")
+
+        # Smalltalk check
+        smalltalk = check_smalltalk(user_question)
+        if smalltalk:
+            return Response({"answer": smalltalk}, status=200)
+
+        if not user_question:
+            return Response({"error": "No question provided"}, status=400)
+
+        # Chat session handling
+        if session_id:
+            session = get_object_or_404(ChatSession, id=session_id, user=user)
+        else:
+            title = user_question[:50] + ("..." if len(user_question) > 50 else "")
+            session = ChatSession.objects.create(user=user, title=title)
+
+        # Save user message
+        History.objects.create(session=session, sender="user", message=user_question)
+
+        # Collect recent history
+        N = 6
+        recent_qs = session.messages.order_by("-timestamp")[:N]
+        recent = list(reversed(list(recent_qs)))
+        history = [{"sender": m.sender, "message": m.message, "timestamp": m.timestamp} for m in recent]
+
+        # Context building
+        context_text = build_context(history, user_question, max_messages=N)
+
+        # Classification (for qa_lookup label filtering)
+        label = classify_question(context_text)
+
+        # Unified answer pipeline
+        answer = get_answer(user_question, label, context=context_text, history=history)
+
+        # Save unanswered if nothing solid
+        if not answer or answer.strip().lower() in ["i don't know", "not sure", "unknown"]:
+            Unanswered.objects.create(user=user, question=user_question)
+            answer = "I’m not sure yet 🤔, but I’ll learn from this question!"
+
+        # Save bot response
+        History.objects.create(session=session, sender="bot", message=answer)
+
+        return Response({
+            "session_id": session.id,
+            "user_question": user_question,
+            "context_used": context_text,
+            "label": label,
+            "answer": answer
+        })
+
 
 class DailyTipView(APIView):
     permission_classes = [AllowAny]
@@ -146,53 +206,6 @@ class ChatbotAudioAPIView(APIView):
                 os.remove(tmp_in_path)
             if "tmp_wav_path" in locals() and os.path.exists(tmp_wav_path):
                 os.remove(tmp_wav_path)
-
-class ChatbotAPIView(APIView):
-    permission_classes = [IsAuthenticated]   
-
-    def post(self, request):
-        user = request.user
-        user_question = (request.data.get("question") or "").strip()
-        session_id = request.data.get("session_id")
-
-        smalltalk = check_smalltalk(user_question)
-        if smalltalk:  
-            return Response({"answer": smalltalk}, status=200)
-
-        if not user_question:
-            return Response({"error": "No question provided"}, status=400)
-
-        if session_id:
-            session = get_object_or_404(ChatSession, id=session_id, user=user)
-        else:
-            title = user_question[:50] + ("..." if len(user_question) > 50 else "")
-            session = ChatSession.objects.create(user=user, title=title)
-
-        History.objects.create(session=session, sender="user", message=user_question)
-
-        N = 6
-        recent_qs = session.messages.order_by("-timestamp")[:N]   
-        recent = list(reversed(list(recent_qs)))                
-        history = [{"sender": m.sender, "message": m.message, "timestamp": m.timestamp} for m in recent]
-        context_text = build_context(history, user_question, max_messages=N)
-
-        label = classify_question(context_text)
-
-        answer = get_answer(user_question, label, context=context_text, history=history)
-
-        if not answer or answer.strip().lower() in ["i don't know", "not sure", "unknown"]:
-            Unanswered.objects.create(user=user, question=user_question)
-            answer = "I’m not sure yet 🤔, but I’ll learn from this question!"
-
-        History.objects.create(session=session, sender="bot", message=answer)
-
-        return Response({
-            "session_id": session.id,
-            "user_question": user_question,
-            "context_used": context_text,
-            "label": label,
-            "answer": answer
-        })
 
 class ChatSessionListAPIView(APIView):
     permission_classes = [IsAuthenticated]

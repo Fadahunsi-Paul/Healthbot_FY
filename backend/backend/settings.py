@@ -58,9 +58,11 @@ INSTALLED_APPS = [
     # Local Apps
     'api',
     'auths',
+    'nlp',
     
     # Third Party Apps
     'drf_yasg',
+    # 'nlpdrf_yasg',
     'rest_framework',
     'corsheaders',  # Enable CORS
     'django_filters',
