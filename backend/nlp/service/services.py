@@ -16,7 +16,7 @@ DATA_CSV = os.path.join(settings.BASE_DIR, "api", "dataset", "train.csv")
 # Stricter thresholds to minimize hallucinations
 FAISS_SCORE_THRESHOLD = 0.72
 FUZZY_CUTOFF = 0.9
-STRICT_MODE = True  # When True, only return very confident dataset matches in smart_dataset_lookup
+STRICT_MODE = False  # Allow keyword-based lookups for single terms like "malaria", "diabetes"
 
 # Disease aliases
 DISEASE_ALIASES = {
@@ -29,12 +29,26 @@ DISEASE_ALIASES = {
     "cancer": ["cancer", "tumor", "neoplasm", "malignancy"],
 }
 
-# Intent keywords
+# Intent keywords (extended to cover all dataset qtypes)
 INTENT_KEYWORDS = {
     "cause": ["cause", "causes", "reason", "etiology", "why", "how do you get", "what causes"],
     "symptom": ["symptom", "symptoms", "signs", "manifestation", "feel like", "what does it feel"],
-    "treatment": ["treatment", "treat", "cure", "manage", "therapy", "medication", "medicine"],
+    "treatment": ["treatment", "treat", "cure", "manage", "therapy", "medication", "medicine", "management"],
     "prevention": ["prevent", "prevention", "avoid", "reduce risk", "vaccine", "protect"],
+    "exams and tests": ["test", "tests", "diagnose", "diagnosis", "screen", "screening"],
+    "considerations": ["what to do", "consider", "next steps", "do about"],
+    "complications": ["complication", "complications", "risk of", "leads to"],
+    "emergency": ["emergency", "urgent", "immediately", "call"],
+    "frequency": ["how often", "frequency", "common", "prevalence"],
+    "genetic changes": ["mutation", "genetic", "genes", "variants"],
+    "inheritance": ["inherit", "inherited", "hereditary", "runs in families"],
+    "lifestyle": ["lifestyle", "diet", "exercise", "habits"],
+    "mental health": ["mental", "anxiety", "depression", "stress"],
+    "outlook": ["outlook", "prognosis", "survival", "long term"],
+    "research": ["research", "latest", "trials", "study"],
+    "stages": ["stage", "stages", "phase", "phases"],
+    "susceptibility": ["susceptible", "at risk", "risk factors", "who gets"],
+    "information": ["what is", "what are", "information", "about"],
 }
 
 # Phrase-level paraphrase normalization rules (intent canonicalization)
@@ -56,6 +70,14 @@ PHRASE_SYNONYMS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\bhow\s+can\s+I\s+avoid\b", re.I), "how to prevent"),
     (re.compile(r"\breduce\s+risk\s+of\b", re.I), "how to prevent"),
     (re.compile(r"\bways?\s+to\s+avoid\b", re.I), "how to prevent"),
+    # Exams & Tests
+    (re.compile(r"\bhow\s+to\s+diagnose\b", re.I), "tests for"),
+    (re.compile(r"\bhow\s+is\s+.*\bdiagnosed\b", re.I), "tests for"),
+    # Considerations
+    (re.compile(r"\bwhat\s+to\s+do\s+for\b", re.I), "what to do for"),
+    (re.compile(r"\bwhat\s+should\s+I\s+do\s+for\b", re.I), "what to do for"),
+    # Outlook
+    (re.compile(r"\bwhat\s+is\s+the\s+prognosis\s+for\b", re.I), "outlook for"),
 ]
 
 def normalize_text(text: str) -> str:
@@ -166,6 +188,136 @@ def normalize_intent_phrases(query: str) -> str:
             pass
     return new_q
 
+def detect_intent_from_text(text: str) -> str | None:
+    text_lc = (text or "").lower()
+    
+    # Enhanced pattern matching for better follow-up detection
+    if re.search(r"\b(how\s+is\s+it\s+treated?|how\s+do\s+i\s+treat\s+it|how\s+to\s+treat\s+it)\b", text_lc):
+        return "treatment"
+    if re.search(r"\b(how\s+is\s+it\s+prevented?|how\s+do\s+i\s+prevent\s+it|how\s+to\s+prevent\s+it)\b", text_lc):
+        return "prevention"
+    if re.search(r"\b(what\s+are\s+the\s+symptoms?|what\s+about\s+symptoms?|how\s+do\s+i\s+know\s+if\s+i\s+have\s+it)\b", text_lc):
+        return "symptom"
+    if re.search(r"\b(what\s+causes\s+it|why\s+do\s+i\s+get\s+it|how\s+do\s+i\s+get\s+it)\b", text_lc):
+        return "cause"
+    
+    # Original keyword matching
+    for intent, kws in INTENT_KEYWORDS.items():
+        if any(kw in text_lc for kw in kws):
+            return intent
+    
+    # Shorthand follow-ups: "what about symptoms/treatment/..."
+    if re.search(r"\b(symptoms?|treatment|treat|causes?|prevention|prevent)\b", text_lc):
+        if re.search(r"symptom|sign", text_lc):
+            return "symptom"
+        if re.search(r"treat|treatment|cure|manage", text_lc):
+            return "treatment"
+        if re.search(r"cause|why|how do you get", text_lc):
+            return "cause"
+        if re.search(r"prevent|reduce risk|avoid", text_lc):
+            return "prevention"
+    return None
+
+def _build_condition_index() -> tuple[set[str], dict[str, str]]:
+    """Return (conditions_set, alias_map) using dataset extraction and aliases."""
+    conditions = extract_entities_from_dataset() | extract_medical_conditions_from_dataset()
+    # Add disease aliases as simple expansions
+    alias_map: dict[str, str] = {}
+    for canonical, aliases in DISEASE_ALIASES.items():
+        for alias in aliases:
+            alias_map[alias.lower()] = canonical.lower()
+        conditions.add(canonical.lower())
+    # Add dataset-driven aliases (acronyms, aka)
+    try:
+        dataset_aliases = _load_aliases_from_dataset()
+        for alias, canonical in dataset_aliases.items():
+            alias_map[alias.lower()] = canonical.lower()
+            conditions.add(canonical.lower())
+    except Exception:
+        pass
+    return conditions, alias_map
+
+def detect_recent_condition(history: list, current_text: str = "") -> str | None:
+    """Find the most recent condition mention across history or current text.
+
+    Uses simple substring matching against known condition names and alias map.
+    Picks the longest match to bias towards specific multi-word conditions.
+    """
+    conditions, alias_map = _build_condition_index()
+    def resolve(text: str) -> str | None:
+        t = (text or "").lower()
+        best: tuple[int, str] | None = None
+        # Check aliases first
+        for alias, canonical in alias_map.items():
+            if alias in t:
+                cand = canonical
+                if not best or len(cand) > best[0]:
+                    best = (len(cand), cand)
+        # Check raw condition names
+        for cond in conditions:
+            if cond in t:
+                cand = cond
+                if not best or len(cand) > best[0]:
+                    best = (len(cand), cand)
+        return best[1] if best else None
+
+    # Prefer current text
+    found = resolve(current_text)
+    if found:
+        return found
+    # Then scan recent history (last 10 messages, newest first)
+    if history:
+        for msg in reversed(history[-10:]):
+            candidate = resolve(msg.get("message", ""))
+            if candidate:
+                return candidate
+    return None
+
+def rewrite_followup_query(user_query: str, history: list | None) -> str:
+    """Rewrite follow-up queries by injecting the recent condition and inferred intent.
+
+    Examples:
+      - "what about symptoms?" → "what are <cond> symptoms"
+      - "and treatment?" → "how to treat <cond>"
+      - "how to prevent it?" → "how to prevent <cond>"
+    """
+    q = (user_query or "").strip()
+    q_lc = q.lower()
+    # Quick check: follow-up cues or pronouns
+    is_followup = bool(re.search(r"\b(what about|and)\b", q_lc)) or bool(re.search(r"\b(it|this|that)\b", q_lc))
+    intent = detect_intent_from_text(q)
+    # If the query already names a condition, leave it
+    named_cond = detect_recent_condition([], current_text=q)
+    if named_cond:
+        return q
+    if not is_followup and not intent:
+        return q
+    cond = detect_recent_condition(history or [], current_text="")
+    if not cond:
+        return q
+    # Map intent to canonical form
+    if not intent:
+        # Try to inherit last user intent from history
+        last_intent = None
+        if history:
+            for msg in reversed(history[-10:]):
+                if msg.get("sender") == "user":
+                    last_intent = detect_intent_from_text(msg.get("message", ""))
+                    if last_intent:
+                        break
+        intent = last_intent or "information"
+    # Build canonical query by intent
+    if intent == "treatment":
+        return f"how to treat {cond}"
+    if intent == "prevention":
+        return f"how to prevent {cond}"
+    if intent == "symptom":
+        return f"what are {cond} symptoms"
+    if intent == "cause":
+        return f"what causes {cond}"
+    # Default information
+    return f"what is {cond}"
+
 def extract_medical_conditions_from_dataset():
     """Extract all medical conditions from the dataset for comprehensive coverage"""
     if not os.path.exists(DATA_CSV):
@@ -194,10 +346,22 @@ def extract_medical_conditions_from_dataset():
             matches = re.findall(pattern, question)
             for match in matches:
                 # Clean condition name
-                condition = re.sub(r'[^a-zA-Z\s]', ' ', match).strip()
+                condition = re.sub(r'[^a-zA-Z\s\-]', ' ', match).strip()
                 condition = ' '.join(condition.split())  # Remove extra spaces
-                if len(condition) > 3 and not any(stop in condition for stop in ['the', 'and', 'or', 'is', 'are', 'can', 'you', 'may']):
+                if len(condition) > 3 and not any(stop in condition.split() for stop in ['the', 'and', 'or', 'is', 'are', 'can', 'you', 'may']):
                     conditions.add(condition)
+                    # Also add individual parts for compound terms like "Parasites - Schistosomiasis"
+                    if ' - ' in condition:
+                        parts = condition.split(' - ')
+                        for part in parts:
+                            part = part.strip()
+                            if len(part) > 3:
+                                conditions.add(part)
+                    # Add individual words for multi-word conditions
+                    words = condition.split()
+                    for word in words:
+                        if len(word) > 4 and word not in ['disease', 'syndrome', 'disorder']:
+                            conditions.add(word)
         
         # Also extract individual important medical terms
         medical_terms = ['syndrome', 'disease', 'deficiency', 'dystrophy', 'myopathy', 'neuropathy', 
@@ -209,6 +373,44 @@ def extract_medical_conditions_from_dataset():
                 conditions.add(term)
     
     return conditions
+
+def extract_entities_from_dataset():
+    """Extract generic entities/topics from Questions across qtypes (not just diseases)."""
+    if not os.path.exists(DATA_CSV):
+        return set()
+
+    df = pd.read_csv(DATA_CSV).fillna("")
+    entities: set[str] = set()
+
+    patterns = [
+        r'what is \(are\) (.+?) \?',
+        r'what is (.+?) \?',
+        r'what are the symptoms of (.+?) \?',
+        r'what are the treatments for (.+?) \?',
+        r'what causes (.+?) \?',
+        r'how to prevent (.+?) \?',
+        r'symptoms of (.+?) \?',
+        r'treatments for (.+?) \?',
+        r'causes of (.+?) \?',
+        r'tests for (.+?) \?',
+        r'how to diagnose (.+?) \?',
+        r'what to do for (.+?) \?',
+        r'outlook for (.+?) \?',
+        r'stages of (.+?) \?',
+        r'who is at risk for (.+?) \?',
+    ]
+
+    for _, row in df.iterrows():
+        q = str(row.get('Question', '')).lower()
+        for pat in patterns:
+            m = re.search(pat, q)
+            if m:
+                ent = re.sub(r'[^a-z\s-]', ' ', m.group(1)).strip()
+                ent = ' '.join(ent.split())
+                if len(ent) >= 3 and ent not in {'the', 'and', 'or'}:
+                    entities.add(ent)
+
+    return entities
 
 # Cache for alias extraction so we only scan the dataset once per process
 _ALIAS_CACHE: dict[str, str] | None = None
@@ -452,10 +654,84 @@ def get_disease_from_query(query: str) -> str | None:
             return disease
     return None
 
+def handle_single_keyword_query(query: str, label: str = None) -> str | None:
+    """Handle single keyword queries like 'malaria', 'diabetes', 'headache'."""
+    if not os.path.exists(DATA_CSV):
+        return None
+    
+    df = pd.read_csv(DATA_CSV).fillna("")
+    query_lower = query.strip().lower()
+    
+    # Check if it's a single word or short phrase (max 3 words)
+    words = query_lower.split()
+    if len(words) > 3:
+        return None
+    
+    # Get all medical conditions from dataset
+    all_conditions = extract_medical_conditions_from_dataset()
+    
+    # Find matching conditions
+    matching_conditions = []
+    for condition in all_conditions:
+        condition_lower = condition.lower()
+        # Exact match
+        if condition_lower == query_lower:
+            matching_conditions.append((condition, 100))  # Perfect match
+        # Partial match - check if query is contained in condition or vice versa
+        elif query_lower in condition_lower or condition_lower in query_lower:
+            # Calculate similarity score
+            import difflib
+            similarity = difflib.SequenceMatcher(None, query_lower, condition_lower).ratio()
+            if similarity > 0.6:  # 60% similarity threshold
+                matching_conditions.append((condition, similarity * 100))
+        # Word-level matching for compound terms like "parasites - schistosomiasis"
+        elif ' - ' in condition_lower:
+            parts = condition_lower.split(' - ')
+            for part in parts:
+                part = part.strip()
+                if query_lower in part or part in query_lower:
+                    import difflib
+                    similarity = difflib.SequenceMatcher(None, query_lower, part).ratio()
+                    if similarity > 0.7:  # Higher threshold for word-level matches
+                        matching_conditions.append((condition, similarity * 100))
+                        break
+    
+    if not matching_conditions:
+        return None
+    
+    # Sort by similarity score (highest first)
+    matching_conditions.sort(key=lambda x: x[1], reverse=True)
+    best_condition = matching_conditions[0][0]
+    
+    # Search for information about this condition
+    condition_words = best_condition.lower().split()
+    condition_pattern = '|'.join(condition_words)
+    
+    condition_mask = df['Question'].str.contains(condition_pattern, case=False, na=False, regex=True)
+    condition_df = df[condition_mask]
+    
+    if condition_df.empty:
+        return None
+    
+    # If label specified, try to find that specific type of information
+    if label:
+        label_matches = condition_df[condition_df['qtype'] == label]
+        if not label_matches.empty:
+            return label_matches.iloc[0]['Answer']
+    
+    # Default to 'information' type if available
+    info_matches = condition_df[condition_df['qtype'] == 'information']
+    if not info_matches.empty:
+        return info_matches.iloc[0]['Answer']
+    
+    # Fallback to any available answer
+    return condition_df.iloc[0]['Answer']
+
 # Unified answer function
 def get_answer(user_question: str, label: str = None, context: str = None, history: list = None) -> str:
-    # Improve context-dependent queries
+    # Improve context-dependent queries & follow-ups
     user_question = improve_query_with_context(user_question, context, history)
+    user_question = rewrite_followup_query(user_question, history)
     user_question = normalize_intent_phrases(user_question)
     user_question = canonicalize_condition_terms(user_question)
     norm_query = normalize_text(user_question)
@@ -464,6 +740,12 @@ def get_answer(user_question: str, label: str = None, context: str = None, histo
     smalltalk_resp = check_smalltalk(user_question)
     if smalltalk_resp:
         return smalltalk_resp
+
+    # 0.5️⃣ Single keyword check (for terms like "malaria", "diabetes", "headache")
+    single_keyword_ans = handle_single_keyword_query(user_question, label)
+    if single_keyword_ans:
+        set_cached_answer(norm_query, single_keyword_ans)
+        return single_keyword_ans
 
     # 1️⃣ Cache check with consistency guard
     cached = get_cached_answer(norm_query)
