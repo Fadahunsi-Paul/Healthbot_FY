@@ -1,4 +1,7 @@
 # __define-ocg__ Full Training and Save Pipeline
+import os
+import sys
+import argparse
 import pandas as pd
 import joblib
 from sklearn.model_selection import train_test_split
@@ -7,8 +10,19 @@ from sklearn.svm import LinearSVC
 from sklearn.metrics import classification_report
 from imblearn.over_sampling import RandomOverSampler
 
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Train SVM + TF-IDF on Q/A dataset')
+    parser.add_argument('--dataset', type=str, default=None, help='Path to CSV (Question,qtype,Answer)')
+    return parser.parse_args()
+
+
 # 1. Load dataset
-df = pd.read_csv("dataset/train.csv")
+args = parse_args()
+DATASET = args.dataset or os.getenv('QA_TRAIN_DATASET') or 'dataset/train.csv'
+print(f"Using dataset: {DATASET}")
+
+df = pd.read_csv(DATASET)
 print(f"📊 Original dataset size: {len(df)} rows")
 
 # Check malaria entries

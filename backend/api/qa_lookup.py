@@ -16,7 +16,8 @@ classifier = joblib.load("api/svm_model.pkl")
 tfidf_vectorizer: TfidfVectorizer = joblib.load("api/tfidf_vectorizer.pkl")
 
 # Config
-TFIDF_THRESHOLD = 0.5  # stricter similarity threshold
+# Balance precision and recall for paraphrases while avoiding hallucinations
+TFIDF_THRESHOLD = 0.62
 TOP_K = 5              # number of candidates to re-rank
 
 def rerank_candidates(query: str, candidates: list[dict], query_vec):
@@ -51,21 +52,26 @@ def get_answer(query: str, label: str = None, context: str = None, history: list
     query_text = (context + "\nUser: " + query) if context else query
     query_vec = tfidf_vectorizer.transform([query_text])
 
-    if not label or label not in qa_dict:
-        return None
-
-    candidates = qa_dict[label]
-    best = rerank_candidates(query, candidates, query_vec)
-    if best:
-        return best
-
-    # Fallback: search across the full label set
-    label_df = df[df["qtype"] == label]
-    if not label_df.empty:
-        fallback_candidates = label_df[["Question", "Answer"]].to_dict("records")
-        best = rerank_candidates(query, fallback_candidates, query_vec)
+    if label and label in qa_dict:
+        # Primary: search within predicted label
+        candidates = qa_dict[label]
+        best = rerank_candidates(query, candidates, query_vec)
         if best:
             return best
+
+        # Secondary: allow nearby candidates within the same label dataframe (duplicates removed)
+        label_df = df[df["qtype"] == label]
+        if not label_df.empty:
+            fallback_candidates = label_df[["Question", "Answer"]].drop_duplicates().to_dict("records")
+            best = rerank_candidates(query, fallback_candidates, query_vec)
+            if best:
+                return best
+
+    # Cross-label fallback: search across the entire dataset if label-specific search failed
+    all_candidates = df[["Question", "Answer"]].drop_duplicates().to_dict("records")
+    best = rerank_candidates(query, all_candidates, query_vec)
+    if best:
+        return best
 
     # Last resort: history-based keyword match
     if history:
