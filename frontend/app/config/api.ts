@@ -1,8 +1,8 @@
 // API Configuration
 export const API_CONFIG = {
   // Backend URL - change this to your deployed backend URL in production
-  // BASE_URL: process.env.NEXT_PUBLIC_API_URL || "https://healthbot-fy.onrender.com",
-   BASE_URL: process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000",
+  BASE_URL: process.env.NEXT_PUBLIC_API_URL || "https://healthbot-fy.onrender.com",
+  //  BASE_URL: process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000",
 
   
   // API Endpoints
