@@ -1,0 +1,171 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Django
+*.log
+local_settings.py
+# db.sqlite3
+db.sqlite3-journal
+media/
+
+# Environment variables
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Large model files and datasets
+*.pkl
+*.joblib
+*.h5
+*.hdf5
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+*.pkl.gz
+*.tar.gz
+*.zip
+
+# FAISS index files
+*.idx
+*.meta
+faiss_index_*
+faiss_meta_*
+
+# Dataset files (keep structure but exclude large data)
+api/dataset/*.csv
+api/dataset/*.json
+api/dataset/*.parquet
+api/dataset/*.xlsx
+api/dataset/*.xls
+
+# Specific large files in your project
+answerable_questions.csv
+train_augmented.csv
+train.csv
+train.csv.backup
+train.csv.backup2
+faiss_index.idx
+faiss_index_meta.json
+svm_model.pkl
+tfidf_vectorizer.pkl
+
+# Database files
+# db.sqlite3
+# *.db
+
+# Large DLL and library files
+*.dll
+*.lib
+*.pyd
+*.so
+
+# Language model files
+language-model.lm.bin
+*.bin
+
+# Webfiles
+webfiles.zip
+
+# Model checkpoints and weights
+models/
+checkpoints/
+weights/
+*.weights
+
+# Cache directories
+.cache/
+cache/
+__pycache__/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Logs
+logs/
+*.log
+
+# Node modules (if any frontend assets)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Backup files
+*.backup
+*.bak
+*.old

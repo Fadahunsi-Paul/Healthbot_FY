@@ -6,7 +6,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 # Load data & models
-df = pd.read_csv("api/dataset/train.csv")
+df = pd.read_csv("api/dataset/train_augmented.csv")
 qa_dict = (
     df.groupby("qtype")[["Question", "Answer"]]
     .apply(lambda x: x.to_dict("records"))

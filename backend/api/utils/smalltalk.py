@@ -13,7 +13,8 @@ MEDICAL_KEYWORDS = {
     "causes", "treatment", "prevention", "vaccine", "infection", "cough", "cold",
     "disease", "sickness", "illness", "medication", "prescription", "doctor", "hospital",
     "health", "wellness", "fitness", "nutrition", "exercise", "sleep", "stress", "anxiety",
-    "depression", "mental health", "well-being",
+    "depression", "mental health", "well-being", "schistosomiasis", "hypertension",
+    "cancer", "asthma", "arthritis", "migraine", "pneumonia", "tuberculosis",
 }
 
 RESPONSES = {

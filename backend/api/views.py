@@ -22,14 +22,14 @@ from nlp.service.services import get_answer
 
 
 class ChatbotAPIView(APIView):
-    permission_classes = [IsAuthenticated]   
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         user = request.user
         user_question = (request.data.get("question") or "").strip()
         session_id = request.data.get("session_id")
 
-        # Smalltalk check
+        # 🔹 Smalltalk check first
         smalltalk = check_smalltalk(user_question)
         if smalltalk:
             return Response({"answer": smalltalk}, status=200)
@@ -37,7 +37,7 @@ class ChatbotAPIView(APIView):
         if not user_question:
             return Response({"error": "No question provided"}, status=400)
 
-        # Chat session handling
+        # 🔹 Chat session handling
         if session_id:
             session = get_object_or_404(ChatSession, id=session_id, user=user)
         else:
@@ -47,22 +47,22 @@ class ChatbotAPIView(APIView):
         # Save user message
         History.objects.create(session=session, sender="user", message=user_question)
 
-        # Collect recent history
+        # 🔹 Collect last N messages
         N = 6
         recent_qs = session.messages.order_by("-timestamp")[:N]
         recent = list(reversed(list(recent_qs)))
         history = [{"sender": m.sender, "message": m.message, "timestamp": m.timestamp} for m in recent]
 
-        # Context building
+        # 🔹 Context building
         context_text = build_context(history, user_question, max_messages=N)
 
-        # Classification (for qa_lookup label filtering)
+        # 🔹 Classification (still useful metadata)
         label = classify_question(context_text)
 
-        # Unified answer pipeline
-        answer = get_answer(user_question, label, context=context_text, history=history)
+        # 🔹 Unified answer pipeline with FAISS + threshold
+        answer = get_answer(user_question, label=label, context=context_text, history=history)
 
-        # Save unanswered if nothing solid
+        # If retrieval confidence too low → save unanswered + fallback
         if not answer or answer.strip().lower() in ["i don't know", "not sure", "unknown"]:
             Unanswered.objects.create(user=user, question=user_question)
             answer = "I’m not sure yet 🤔, but I’ll learn from this question!"
@@ -77,7 +77,6 @@ class ChatbotAPIView(APIView):
             "label": label,
             "answer": answer
         })
-
 
 class DailyTipView(APIView):
     permission_classes = [AllowAny]
