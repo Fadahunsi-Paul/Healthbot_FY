@@ -208,6 +208,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Next.js frontend
     "http://127.0.0.1:3000",  # Alternative localhost
     "https://healthbot-fy.vercel.app",  # Replace with your actual frontend URL
+    "https://healthbot-fy.onrender.com",
 ]
 
 # Allow credentials to be included in CORS requests (for cookies/tokens)
@@ -232,7 +233,8 @@ CORS_ALLOWED_HEADERS = [
 # For development only - allows all origins (remove in production)
 # CORS_ALLOW_ALL_ORIGINS = True
 
-SITE_URL='http://localhost:8000'
+# SITE_URL='http://localhost:8000'
+SITE_URL='https://healthbot-fy.onrender.com'
 # Run fetch_daily_tip every day at 8 AM
 CRONJOBS = [
     ('0 8 * * *', 'django.core.management.call_command', ['fetch_daily_tip']),
