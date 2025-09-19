@@ -304,53 +304,6 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
         </div>
       </section>
 
-      {/* Medical Scan Samples */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">AI-Powered Medical Image Analysis</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card className="hover:shadow-lg transition-shadow bg-white">
-              <CardContent className="p-6">
-                <div className="aspect-square bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg mb-4 flex items-center justify-center">
-                  <img
-                    src="/placeholder.svg?height=200&width=200"
-                    alt="Chest X-Ray Analysis"
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">X-Ray Analysis</h3>
-                <p className="text-gray-600">Advanced AI detection for chest X-rays and bone fractures</p>
-              </CardContent>
-            </Card>
-            <Card className="hover:shadow-lg transition-shadow bg-white">
-              <CardContent className="p-6">
-                <div className="aspect-square bg-gradient-to-br from-green-100 to-green-200 rounded-lg mb-4 flex items-center justify-center">
-                  <img
-                    src="/placeholder.svg?height=200&width=200"
-                    alt="MRI Scan Analysis"
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">MRI Scanning</h3>
-                <p className="text-gray-600">Detailed brain and organ analysis with AI insights</p>
-              </CardContent>
-            </Card>
-            <Card className="hover:shadow-lg transition-shadow bg-white">
-              <CardContent className="p-6">
-                <div className="aspect-square bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg mb-4 flex items-center justify-center">
-                  <img
-                    src="/placeholder.svg?height=200&width=200"
-                    alt="Skin Analysis"
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Skin Analysis</h3>
-                <p className="text-gray-600">Dermatological assessment and skin condition detection</p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
 
       {/* Final CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-600 to-purple-700">
@@ -409,9 +362,9 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
               <h3 className="text-lg font-semibold mb-4">Features</h3>
               <ul className="space-y-2 text-gray-400">
                 <li>24/7 AI Assistant</li>
-                <li>Medical Image Analysis</li>
                 <li>Personalized Recommendations</li>
                 <li>Health Tracking</li>
+                <li>Evidence-Based Guidance</li>
               </ul>
             </div>
             <div>
