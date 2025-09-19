@@ -1,0 +1,20 @@
+,pred_cause,pred_complications,pred_considerations,pred_emergency,pred_exams and tests,pred_first aid,pred_frequency,pred_genetic changes,pred_information,pred_inheritance,pred_lifestyle,pred_mental health,pred_outlook,pred_prevention,pred_research,pred_stages,pred_susceptibility,pred_symptom,pred_treatment
+true_cause,146,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+true_complications,0,9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+true_considerations,0,0,33,0,0,0,0,0,11,0,0,0,0,0,0,0,0,0,0
+true_emergency,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+true_exams and tests,0,0,0,0,129,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+true_first aid,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0
+true_frequency,0,0,0,0,0,0,223,0,1,0,0,0,0,0,0,0,0,0,0
+true_genetic changes,0,0,0,0,0,0,0,218,0,0,0,0,0,0,0,0,0,0,0
+true_information,0,1,55,1,0,0,0,2,833,0,0,1,0,0,1,0,1,2,1
+true_inheritance,0,0,0,0,0,0,0,0,0,289,0,0,0,0,0,0,0,0,0
+true_lifestyle,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0
+true_mental health,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0
+true_outlook,0,0,0,0,0,0,0,0,0,0,0,0,72,0,0,0,0,0,0
+true_prevention,1,0,0,0,0,0,0,0,3,0,0,0,0,42,0,0,0,0,0
+true_research,0,0,0,0,0,0,0,0,0,0,0,0,0,0,79,0,0,0,0
+true_stages,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,15,0,0,0
+true_susceptibility,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,65,0,0
+true_symptom,0,0,0,0,0,0,0,0,4,0,0,0,0,0,0,0,0,555,0
+true_treatment,1,0,0,0,0,0,0,0,3,0,0,0,0,1,0,0,0,0,490

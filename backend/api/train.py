@@ -7,7 +7,7 @@ import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import LinearSVC
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 from imblearn.over_sampling import RandomOverSampler
 
 
@@ -19,24 +19,24 @@ def parse_args():
 
 # 1. Load dataset
 args = parse_args()
-DATASET = args.dataset or os.getenv('QA_TRAIN_DATASET') or 'dataset/train.csv'
+DATASET = args.dataset or os.getenv('QA_TRAIN_DATASET') or 'api/dataset/train.csv'
 print(f"Using dataset: {DATASET}")
 
 df = pd.read_csv(DATASET)
-print(f"📊 Original dataset size: {len(df)} rows")
+print(f"Original dataset size: {len(df)} rows")
 
 # Check malaria entries
 malaria_mask = df['Question'].str.contains('malaria', case=False, na=False)
 malaria_df = df[malaria_mask]
-print(f"🦟 Malaria entries: {len(malaria_df)}")
-print("📋 Malaria question types:")
+print(f"Malaria entries: {len(malaria_df)}")
+print("Malaria question types:")
 print(malaria_df['qtype'].value_counts().to_dict())
 
 # 2. Clean rare classes
 counts = df['qtype'].value_counts()
 rare_classes = counts[counts < 5].index
 df = df[~df['qtype'].isin(rare_classes)]  # drop ultra-rare classes
-print(f"🧹 After removing rare classes: {len(df)} rows")
+print(f"After removing rare classes: {len(df)} rows")
 
 X, y = df['Question'], df['qtype']
 
@@ -59,7 +59,7 @@ X_test_tfidf = vectorizer.transform(X_test)
 # 5. Oversampling (for balanced training)
 ros = RandomOverSampler(random_state=42)
 X_train_res, y_train_res = ros.fit_resample(X_train_tfidf, y_train)
-print(f"📈 Training samples after oversampling: {X_train_res.shape[0]}")
+print(f"Training samples after oversampling: {X_train_res.shape[0]}")
 
 # 6. Train SVM
 svm = LinearSVC(class_weight="balanced", random_state=42, max_iter=2000)
@@ -67,8 +67,27 @@ svm.fit(X_train_res, y_train_res)
 
 # 7. Evaluate
 y_pred = svm.predict(X_test_tfidf)
-print("\n📊 Classification Report:")
+print("\nClassification Report:")
 print(classification_report(y_test, y_pred))
+
+# Accuracy and Confusion Matrix
+accuracy = accuracy_score(y_test, y_pred)
+print(f"\nAccuracy: {accuracy:.4f}")
+
+class_labels = sorted(y.unique())
+cm = confusion_matrix(y_test, y_pred, labels=class_labels)
+cm_df = pd.DataFrame(
+    cm,
+    index=[f"true_{label}" for label in class_labels],
+    columns=[f"pred_{label}" for label in class_labels],
+)
+cm_csv_path = "confusion_matrix.csv"
+cm_df.to_csv(cm_csv_path)
+print(f"Confusion matrix saved to {cm_csv_path}")
+
+# Print confusion matrix to console
+print("\nConfusion matrix (rows=true, cols=pred):")
+print(cm_df.to_string())
 
 # Test malaria classification specifically
 test_queries = [
@@ -80,7 +99,7 @@ test_queries = [
     "What is malaria?"
 ]
 
-print("\n🧪 Testing malaria classifications:")
+print("\nTesting malaria classifications:")
 for query in test_queries:
     query_vec = vectorizer.transform([query])
     pred = svm.predict(query_vec)[0]
@@ -91,4 +110,4 @@ for query in test_queries:
 joblib.dump(svm, "svm_model.pkl")
 joblib.dump(vectorizer, "tfidf_vectorizer.pkl")
 
-print("\n✅ Model and vectorizer saved!")
+print("\nModel and vectorizer saved!")
